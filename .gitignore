@@ -1,9 +1,9 @@
 
 __pycache__/
-iamgeProcessed/
+project/main/yzm/imageProcessed/
 test/
 
 note.md
 user_config.json
-
+*.jpg
 

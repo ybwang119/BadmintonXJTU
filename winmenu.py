@@ -2,7 +2,7 @@ from datetime import datetime
 import tkinter
 
 from numpy import empty
-import PlayBadminton
+import project.main.PlayBadminton as PlayBadminton
 def fun():
     print(un.get(),pwd.get(),platid.get(),mode.get(),date.get())
     info = PlayBadminton.badminton(un.get(),pwd.get(),platid.get(),mode.get(),date.get())

@@ -4,3 +4,12 @@
 2.解决第二次访问https://cas.xjtu.edu.cn/login 出现的需要再次输入帐密的问题
 ##2022.9.18
 优化验证码部分的逻辑（cv水太深了）
+##2022.9.19
+feat：多线程抢场地。
+bug：
+1. 某个thread成功后未能结束程序。
+2. readme文档待更新
+3. 捡漏模式待开发
+一些总结：
+gitignore 只在代码未提交到本地仓库前有效,一旦admit后gitignore便无法追踪
+schedule用于简单调度效果不好，不如sleep简单,或者说没有搞清楚schedule的应用场景

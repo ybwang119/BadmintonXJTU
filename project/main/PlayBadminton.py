@@ -2,6 +2,9 @@
 #coding:utf-8
 import datetime
 import email
+import queue
+import threading
+import schedule
 from Crypto.Cipher import AES
 import base64
 from email.mime.text import MIMEText
@@ -251,7 +254,7 @@ class YiDongJiaoDa(object):
     def select(self,priority:list) -> list:
         '''
         从已查询列表中按优先级次序选择场地,返回一个场地信息
-        priority:按24h制的小时优先级列表
+        priority:按24h制的小时优先级列表,20表示预约20；00——21:59的场地
         实例['20','21','19','09','16']
         '''
         DayPlatTable =self.allplat[self.date]
@@ -262,13 +265,13 @@ class YiDongJiaoDa(object):
                 if(plat[3][0:2] == time):
                     return list(plat)
         
-    def book(self,isEmail:bool, priority:list, InfoList:list = [] ) -> str:
+    def book(self,isEmail:bool, selectplat, InfoList:list = [] ) -> str:
         '''
+        isEmail 是否发送邮件
+        selectplat 选择的场地
         InfoList 为邮箱配置的端口密码等
-        priority为预约优先权次序，形式为两位证书，例如 20 表示预约20；00——21:59的场地
         '''
         print("正在预定,请稍后…………")
-        selectplat = YiDongJiaoDa.select(self,priority)
         if not selectplat:
             print("无可约信息")
             return 'null'
@@ -389,20 +392,39 @@ class YiDongJiaoDa(object):
         if r.status_code==302:
             print("支付成功")
             return True
-        
-
-def badminton(un,pwd,platid,mode,date):
+    
+def bmt_for_winmenu(un,pwd,platid,mode,date=''):
     ydjd = YiDongJiaoDa(un,pwd,platid,date);
     ydjd.search(mode);
     return ydjd.allplat
 
+def bmt_for_thread(ydjd:YiDongJiaoDa, userInfo,mode):
+    '''为线程创建的调用接口。
+    mode：0表示检漏模式；1表示定时抢场地模式
+    '''
+    
+    if mode:
+        success_flag = False
+        while not success_flag:
+            ydjd.search(1)
+            selectplat = ydjd.select(userInfo['priority'])
+            if selectplat:
+                id = ydjd.book(True,selectplat,userInfo['emailConfig']);
+                if id != 'null':
+                    ydjd.buy(id,userInfo['searchPwd']);
+                    return 
+        time.sleep(5000);
+    else:        
+        pass
+
 if __name__ == '__main__':
-    userInfo = userInfoRead();
-    ydjd = YiDongJiaoDa(userInfo['username'],userInfo['pwd'],0);
-    ydjd.login();
-    ydjd.search(0);
-    id = ydjd.book(userInfo['emailConfig'],['20','21','19','09','16']);
-    if id != 'null':
-        ydjd.buy(id,userInfo['searchPwd']);
+    # userInfo = userInfoRead();
+    # ydjd = YiDongJiaoDa(userInfo['username'],userInfo['pwd'],1);
+    # ydjd.login();
+    # ydjd.search(0);
+    # id = ydjd.book(userInfo['emailConfig'],['20','21','19','09','16']);
+    # if id != 'null':
+    #     ydjd.buy(id,userInfo['searchPwd']);
+    bmt_for_thread(1)
     
    
