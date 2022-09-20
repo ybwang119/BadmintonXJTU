@@ -404,27 +404,37 @@ def bmt_for_thread(ydjd:YiDongJiaoDa, userInfo,mode):
     '''
     
     if mode:
-        success_flag = False
-        while not success_flag:
-            ydjd.search(1)
+        circulation_num = 5
+        while (circulation_num):
+            ydjd.search(mode)
             selectplat = ydjd.select(userInfo['priority'])
             if selectplat:
                 id = ydjd.book(True,selectplat,userInfo['emailConfig']);
                 if id != 'null':
                     ydjd.buy(id,userInfo['searchPwd']);
                     return 
-        time.sleep(5000);
+            time.sleep(5);
+            circulation_num -= 1;
     else:        
-        pass
+        #由于定时任务是相互独立的，在抢到一定数量的场地之后应当及时关停程序，否则会无休止地执行下去
+        ydjd.search(mode)
+        selectplat = ydjd.select(userInfo['priority'])
+        if selectplat:
+            id = ydjd.book(True,selectplat,userInfo['emailConfig']);
+            if id != 'null':
+                ydjd.buy(id,userInfo['searchPwd']);
+                return True
+        return False
 
 if __name__ == '__main__':
-    # userInfo = userInfoRead();
-    # ydjd = YiDongJiaoDa(userInfo['username'],userInfo['pwd'],1);
-    # ydjd.login();
-    # ydjd.search(0);
-    # id = ydjd.book(userInfo['emailConfig'],['20','21','19','09','16']);
-    # if id != 'null':
-    #     ydjd.buy(id,userInfo['searchPwd']);
-    bmt_for_thread(1)
+    userInfo = userInfoRead();
+    ydjd = YiDongJiaoDa(userInfo['username'],userInfo['pwd'],0);
+    ydjd.login();
+    ydjd.search(0);
+    selectplat = ydjd.select(userInfo['priority'])
+    id = ydjd.book(True,selectplat,userInfo['emailConfig']);
+    if id != 'null':
+        ydjd.buy(id,userInfo['searchPwd']);
+
     
    
