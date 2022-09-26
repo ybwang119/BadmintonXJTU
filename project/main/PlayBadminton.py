@@ -74,7 +74,7 @@ class YiDongJiaoDa(object):
         
         if date == '':
             today = datetime.datetime.today()
-            five_days_after = today + datetime.timedelta(days=5)
+            five_days_after = today + datetime.timedelta(days=4)
             self.date = five_days_after.strftime("%Y-%m-%d")
         else:
             self.date = date
@@ -210,8 +210,8 @@ class YiDongJiaoDa(object):
         AllPlatTable = {};
         today = datetime.datetime.today()
 
-        start  = 0 if mode == 0 else 5;
-        for i in  range(start,6):
+        start  = 0 if mode == 0 else 4;
+        for i in  range(start,5):
             tomorrow = today + datetime.timedelta(days=i)
             date = tomorrow.strftime("%Y-%m-%d")
             t =int(round(time.time()*1000));
@@ -402,7 +402,6 @@ def bmt_for_thread(ydjd:YiDongJiaoDa, userInfo,mode):
     '''为线程创建的调用接口。
     mode：0表示检漏模式；1表示定时抢场地模式
     '''
-    
     if mode:
         circulation_num = 5
         while (circulation_num):
@@ -428,13 +427,13 @@ def bmt_for_thread(ydjd:YiDongJiaoDa, userInfo,mode):
 
 if __name__ == '__main__':
     userInfo = userInfoRead();
-    ydjd = YiDongJiaoDa(userInfo['username'],userInfo['pwd'],0);
+    ydjd = YiDongJiaoDa(userInfo['username'],userInfo['pwd'],0,'2022-09-28');
     ydjd.login();
     ydjd.search(0);
     selectplat = ydjd.select(userInfo['priority'])
     id = ydjd.book(True,selectplat,userInfo['emailConfig']);
-    if id != 'null':
-        ydjd.buy(id,userInfo['searchPwd']);
+    # if id != 'null':
+    #     ydjd.buy(id,userInfo['searchPwd']);
 
     
    
