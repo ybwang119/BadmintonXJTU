@@ -19,7 +19,7 @@ import requests
 from soupsieve import select
 
 from yzm.ocr import *
-from ua import ua_change
+from SpiderAgency import ua_change
 
 def userInfoRead():
     with open('docs/user_config.json','r') as f:
@@ -194,17 +194,6 @@ class YiDongJiaoDa(object):
         mode = 0 全局扫描  mode = 1 单日查询（只查看第五天场地）
         无需登录即可搜索
         '''
-        #-------------------------202.117.17.144-----------------------------------------------
-        r = self.session.get('http://202.117.17.144/index.html') #http://202.117.17.144/index.html
-        print("202.117.17.144",r.status_code)
-        if r.status_code==200:
-            print("欢迎进入体育场馆预定系统")
-
-        #返回值为html有可用信息
-        url_BMT1 = 'http://202.117.17.144/product/show.html?id=' +self.platid;
-        r = self.session.get(url_BMT1);
-        print("id=",self.platid,r.status_code);
-
         #-----------------------------获取场地信息-------------------------------
         #五天的全部场地信息，用字典存储
         AllPlatTable = {};
@@ -218,14 +207,8 @@ class YiDongJiaoDa(object):
             param = {
                 's_dates': date,
                 'serviceid': self.platid,
-                'type': 'day',
-                #场地1~场地10的url编码 js用此console.log(decodeURIComponent(decodeURI(str)))
-                'coordinatedes': '2_badminton_%25E5%259C%25BA%25E5%259C%25B01%252C2_badminton_%25E5%259C%25BA%25E5%259C%25B02%252C2_badminton_%25E5%259C%25BA%25E5%259C%25B03%252C2_badminton_%25E5%259C%25BA%25E5%259C%25B04%252C2_badminton_%25E5%259C%25BA%25E5%259C%25B05%252C2_badminton_%25E5%259C%25BA%25E5%259C%25B06%252C2_badminton_%25E5%259C%25BA%25E5%259C%25B07%252C2_badminton_%25E5%259C%25BA%25E5%259C%25B08%252C2_badminton_%25E5%259C%25BA%25E5%259C%25B09%252C2_badminton_%25E5%259C%25BA%25E5%259C%25B010',
-                'json': 'html',
                 '_':t,
             }
-            url_getarea ='http://202.117.17.144/product/getarea.html'
-            r = self.session.get(url_getarea,params=param)
 
             param['_'] = int(round(time.time()*1000));
             url_getokinfo= 'http://202.117.17.144/product/findOkArea.html';
@@ -244,11 +227,6 @@ class YiDongJiaoDa(object):
                 print('无空余场地')
             AllPlatTable[date] = PlatTable;   
 
-            '''
-            param['_'] = int(round(time.time()*1000));            
-            url_getlockinfo ='http://202.117.17.144/product/findLockArea.html';
-            r = self.session.get(url_getlockinfo,params=param)
-            '''
         self.allplat = AllPlatTable
 
     def select(self,priority:list) -> list:
@@ -257,12 +235,17 @@ class YiDongJiaoDa(object):
         priority:按24h制的小时优先级列表,20表示预约20；00——21:59的场地
         实例['20','21','19','09','16']
         '''
+        if self.platid == '41':
+            plat_num = int(1 + 9*random())
+        else:
+            plat_num = int(1 + 11*random())
+
         DayPlatTable =self.allplat[self.date]
         if not DayPlatTable:
             return []
         for time in priority:
             for plat in DayPlatTable:
-                if(plat[3][0:2] == time):
+                if(plat[3][0:2] == time and plat[1] == '场地'+str(plat_num)):
                     return list(plat)
         
     def book(self,isEmail:bool, selectplat, InfoList:list = [] ) -> str:
@@ -403,35 +386,41 @@ def bmt_for_thread(ydjd:YiDongJiaoDa, userInfo,mode):
     mode：0表示检漏模式；1表示定时抢场地模式
     '''
     if mode:
-        circulation_num = 5
+        circulation_num = 3
         while (circulation_num):
+            try:
+                ydjd.search(mode)
+                selectplat = ydjd.select(userInfo['priority'])
+                if selectplat:
+                    id = ydjd.book(True,selectplat,userInfo['emailConfig']);
+                    if id != 'null':
+                        ydjd.buy(id,userInfo['searchPwd']);
+                        return 
+            except Exception as e:
+                print(e)
+            time.sleep(5);
+            circulation_num -= 1;
+    else:        
+        #由于定时任务是相互独立的，在抢到一定数量的场地之后应当及时关停程序，否则会无休止地执行下去
+        try:
             ydjd.search(mode)
             selectplat = ydjd.select(userInfo['priority'])
             if selectplat:
                 id = ydjd.book(True,selectplat,userInfo['emailConfig']);
                 if id != 'null':
                     ydjd.buy(id,userInfo['searchPwd']);
-                    return 
-            time.sleep(5);
-            circulation_num -= 1;
-    else:        
-        #由于定时任务是相互独立的，在抢到一定数量的场地之后应当及时关停程序，否则会无休止地执行下去
-        ydjd.search(mode)
-        selectplat = ydjd.select(userInfo['priority'])
-        if selectplat:
-            id = ydjd.book(True,selectplat,userInfo['emailConfig']);
-            if id != 'null':
-                ydjd.buy(id,userInfo['searchPwd']);
-                return True
+                    return True
+        except Exception as e:
+            print(e)
         return False
 
 if __name__ == '__main__':
     userInfo = userInfoRead();
-    ydjd = YiDongJiaoDa(userInfo['username'],userInfo['pwd'],0,'2022-09-28');
-    ydjd.login();
-    ydjd.search(0);
-    selectplat = ydjd.select(userInfo['priority'])
-    id = ydjd.book(True,selectplat,userInfo['emailConfig']);
+    ydjd = YiDongJiaoDa(userInfo['username'],userInfo['pwd'],1,'2022-09-28');
+    # ydjd.login();
+    ydjd.search(1);
+    # selectplat = ydjd.select(userInfo['priority'])
+    # id = ydjd.book(True,selectplat,userInfo['emailConfig']);
     # if id != 'null':
     #     ydjd.buy(id,userInfo['searchPwd']);
 
