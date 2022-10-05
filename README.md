@@ -1,13 +1,33 @@
 ## 环境
-1.为运行js脚本需要安装node环境，以及**crypto-js**库，在(JsToPy.py) line11更改路径
-2.ocr识别中，需要安装库pytesseract，并在(.\yzm\ocr.py)line2 修改tesseract.exe所在的文件路径
+项目依赖库已打包好，执行`pip install -r requirements.txt`可快速添加依赖项
+ocr识别中，需要安装库pytesseract，并在[line2](./project/main/yzm/ocr.py) 修改tesseract.exe所在的文件路径
 
+在[用户参数配置](./docs/user_config.json)填写帐密、查询密码、预约偏好等信息，此部分涉及敏感信息
+```json
+//文件不能有中文注释,此处注释只为帮助规范数据格式
+{
+  "username":"****",
+  "pwd":"******",
+  "searchPwd":"******", //六位校园卡查询密码
+  "priority":["19","18","20","10","11","15","16","09"], //按24h制表示的小时优先级列表,20表示预约20；00——21:59的场地
+  "emailConfig":[
+    {
+      "from":"******@qq.com",
+      "to":"*****@qq.com",
+      "smtpServer":"smtp.qq.com",
+      "port":"****",
+      "AuthorizationCode":"******" //stmp服务授权码
+    }
+  ]
+}
+```
 ## 文件地图
 ```bash
 BadmintonXJTU
 │  .gitignore
 │  README.md
 │  tree.txt
+|  requirements.txt
 │  winmenu.exe #封装后的查询可视化界面
 │  winmenu.py
 ├─bin
@@ -32,7 +52,9 @@ BadmintonXJTU
     │      │      yzmres.png
     │      │      
     │      ├─imagedata          #验证码样本库
-    │      └─imageProcessed              
+    │      └─imageProcessed    
+    ├─resource
+    |       IPpond.txt         
     └─test
             aes.js
             JsToPy.py
