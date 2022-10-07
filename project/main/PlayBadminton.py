@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 #coding:utf-8
+from collections import UserDict
 import datetime
 import email
 import queue
@@ -65,7 +66,7 @@ class YiDongJiaoDa(object):
         self.username = username;
         self.passward = passward;
         self.session = requests.session();
-        self.session.keep_alive = False;
+        # self.session.keep_alive = False;
         self.session.headers['User-Agent'] = ua_change();
         print('随机配置UA信息',self.session.headers['User-Agent'])
         #41 一楼 42 三楼
@@ -90,7 +91,10 @@ class YiDongJiaoDa(object):
                 "secretKey":"18a9d512c03745a791d92630bc0888f6"
             }
             r = self.session.post(url,json=data,headers=headers)
-            userToken = json.loads(r.text)["data"]['userToken']
+            data = json.loads(r.text)["data"]
+            userToken = data['userToken']
+            userId = data['memberId']
+            orgId = data['orgId']
 
             url = "http://org.xjtu.edu.cn/openplatform/toon/auth/generateTicket"
             params = {
@@ -99,6 +103,19 @@ class YiDongJiaoDa(object):
             }
             r = self.session.get(url,params=params,headers=headers)
             ticket = json.loads(r.text)['data']['ticket']
+
+            #为精简search内容，将查询前的准备放在login中
+            url = "http://org.xjtu.edu.cn/workbench/member/appNew/getOauthCode"
+            params = {
+                "userId":userId,
+                "orgId":orgId,
+                "appId":'760',
+                "state":'2222',
+                "redirectUri":'http://202.117.17.144:8080/web/index.html?userType=1',
+                "employeeNo":self.username,
+                "personToken":userToken
+            }
+            r = self.session.get(url,params=params)
             return ticket
         except Exception as e:
             return e
@@ -130,16 +147,12 @@ class YiDongJiaoDa(object):
             date = tomorrow.strftime("%Y-%m-%d")
             t =int(round(time.time()*1000));
             param = {
-                's_dates': date,
-                'serviceid': self.platid,
-                '_':t,
-                'type': 'day',
-                #场地1~场地10的url编码 js用此console.log(decodeURIComponent(decodeURI(str)))
-                'coordinatedes': '2_badminton_%25E5%259C%25BA%25E5%259C%25B01%252C2_badminton_%25E5%259C%25BA%25E5%259C%25B02%252C2_badminton_%25E5%259C%25BA%25E5%259C%25B03%252C2_badminton_%25E5%259C%25BA%25E5%259C%25B04%252C2_badminton_%25E5%259C%25BA%25E5%259C%25B05%252C2_badminton_%25E5%259C%25BA%25E5%259C%25B06%252C2_badminton_%25E5%259C%25BA%25E5%259C%25B07%252C2_badminton_%25E5%259C%25BA%25E5%259C%25B08%252C2_badminton_%25E5%259C%25BA%25E5%259C%25B09%252C2_badminton_%25E5%259C%25BA%25E5%259C%25B010',
-                'json': 'html',
+                's_date': date,
+                'serviceid': self.platid
             }
-            url_getokinfo= 'http://202.117.17.144/product/findOkArea.html';
-            r = self.session.get(url_getokinfo,params=param,timeout=10)
+            url_getokinfo= 'http://202.117.17.144:8080/web/product/findOkArea.html';
+            # http://202.117.17.144/product/findOkArea.html
+            r = self.session.get(url_getokinfo,params=param,allow_redirects=False)
     
             content = r.text;
             pattern = r'"id":([0-9]+).*?"sname":"(场地[\d]+).*?"status":([\d]).*?"time_no":"([0-9:-]+).*?"stockid":([0-9:-]+)';
@@ -162,10 +175,11 @@ class YiDongJiaoDa(object):
         priority:按24h制的小时优先级列表,20表示预约20；00——21:59的场地
         实例['20','21','19','09','16']
         '''
-        if self.platid == '41':
-            plat_num = int(1 + 9*random())
-        else:
-            plat_num = int(1 + 11*random())
+        if mode:
+            if self.platid == '41':
+                plat_num = int(1 + 9*random())
+            else:
+                plat_num = int(1 + 11*random())
 
         DayPlatTable =self.allplat[self.date]
         if not DayPlatTable:
@@ -190,30 +204,33 @@ class YiDongJiaoDa(object):
             print("无符合条件的场地")
             return 'null'
         #--------------------------------------------------
-        num = str(random());
-        url_yzm ='http://202.117.17.144:8080/web/login/yzm.html?' + num;
         for i in range(0,11):
+            num = str(random());
+            url_yzm ='http://202.117.17.144:8080/web/login/yzm.html?' + num;
             r = self.session.get(url_yzm)
+            if r.status_code is '404':
+                return 'yzm请求有误'
             with open('project/main/yzm/image/yzm.jpg','wb') as f:
                 f.write(r.content)
             yzm = ocr('project/main/yzm/image/yzm.jpg',5,3)
             url_tobook = 'http://202.117.17.144:8080/web/order/tobook.html'+self.platid;
             data = {
-                'param': {
+                'param': json.dumps({
                     "stockdetail": {
                         selectplat[4]: selectplat[0]
                     }, 
                     "yzm":yzm,
-                    "address":self.platid},
+                    "address":self.platid}).replace(' ',''),
                 'json':'true'
             }
             headers ={'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'};
-            r = self.session.post(url_tobook,data=urlencode(data),allow_redirects=False);        #urllib.parse.urlencode(data)
-        # info_for_nextpost =re.findall(r'_param=eval\((.*?)\);var',r.text)[0]
+            r = self.session.post(url_tobook,data=urlencode(data),allow_redirects=False);
+            if r.status_code is '200':
+                continue
 
-        orderid = re.findall(r'"orderid":"([\d]*?)"',r.text)[0]
-        print("orderid",orderid);
-        return orderid
+        # orderid = re.findall(r'"orderid":"([\d]*?)"',r.text)[0]
+        # print("orderid",orderid);
+        # return orderid
 
     def buy(self,orderid,querypwd):
         '''
@@ -312,13 +329,16 @@ def bmt_for_thread(ydjd:YiDongJiaoDa, userInfo,mode):
 
 if __name__ == '__main__':
     userInfo = userInfoRead();
-    ydjd = YiDongJiaoDa(userInfo['username'],userInfo['pwd'],0);
+    ydjd = YiDongJiaoDa(userInfo['username'],userInfo['pwd'],1);
+
     ticket = ydjd.login()
+    print('ticket:',ticket)
     if type(ticket) is not str:
-        print(ticket)
         exit(-1);
+
     ydjd.search(0);
     selectplat = ydjd.select(userInfo['priority'],0)
+    print(selectplat)
     id = ydjd.book(True,selectplat,userInfo['emailConfig']);
     # if id != 'null':
     #     ydjd.buy(id,userInfo['searchPwd']);

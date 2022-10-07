@@ -31,5 +31,12 @@ bug：
 
 解决schedule无法关闭的问题。方法：
 在启动的任务中新增global 全局变量，通过改变量控制schedul.run_pending的循环条件
-   
+
+## 2022.10.07
+实际测试,发现并解决bug
+ocr路径报错,起初以为绝对路径有误,后来排查发现时验证码没有请求到
+发现使用`self.session.get`请求验证码时会报404，而不带任何参数使用requests.get请求时正常
+猜测是cookie缺失了,对`/workbench/member/appNew/getOauthCode?userId=803873&orgId=1000&appId=760&state=2222&redirectUri=http%3A%2F%2F202.117.17.144%3A8080%2Fweb%2Findex.html?userType=1&employeeNo=2191411814&personToken=24324d82-95dc-42a5-821e-74c6ed9b1236`重定向的请求后会设置两个cookie,jessionid与sessionid,以此区分不同用户
+该次请求userId与userToken必须对应
+找userId找了半天,实际上这个参数在之前请求userToken时已经拿到了
    
