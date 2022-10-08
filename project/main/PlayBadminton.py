@@ -213,7 +213,7 @@ class YiDongJiaoDa(object):
             with open('project/main/yzm/image/yzm.jpg','wb') as f:
                 f.write(r.content)
             yzm = ocr('project/main/yzm/image/yzm.jpg',5,3)
-            url_tobook = 'http://202.117.17.144:8080/web/order/tobook.html'+self.platid;
+            url_tobook = 'http://202.117.17.144:8080/web/order/tobook.html';
             data = {
                 'param': json.dumps({
                     "stockdetail": {
@@ -224,7 +224,7 @@ class YiDongJiaoDa(object):
                 'json':'true'
             }
             headers ={'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'};
-            r = self.session.post(url_tobook,data=urlencode(data),allow_redirects=False);
+            r = self.session.post(url_tobook,data=data,allow_redirects=False);
             if r.status_code is '200':
                 continue
 
@@ -329,7 +329,7 @@ def bmt_for_thread(ydjd:YiDongJiaoDa, userInfo,mode):
 
 if __name__ == '__main__':
     userInfo = userInfoRead();
-    ydjd = YiDongJiaoDa(userInfo['username'],userInfo['pwd'],1);
+    ydjd = YiDongJiaoDa(userInfo['username'],userInfo['pwd'],0,'2022-10-07');
 
     ticket = ydjd.login()
     print('ticket:',ticket)
