@@ -1,14 +1,6 @@
 #!/usr/bin/env python3
 #coding:utf-8
-from collections import UserDict
 import datetime
-import email
-import queue
-import threading
-from wsgiref import headers
-import schedule
-from Crypto.Cipher import AES
-import base64
 from email.mime.text import MIMEText
 import json
 import re
@@ -18,6 +10,7 @@ from urllib.parse import urlencode
 from fileinput import filename
 from random import random
 import requests
+from sqlalchemy import null
 
 from yzm.ocr import *
 from SpiderAgency import ua_change
@@ -57,10 +50,10 @@ def email(text:str,InfoList:list):
     smtp.quit()
 
 class YiDongJiaoDa(object):
-    def __init__(self,username,passward,PlatFlag,date='') -> None:
+    def __init__(self,username,passward,PlatFlag:str,date='') -> None:
         '''
         username:登录平台用户名；passward：登录平台密码
-        PlatFlag：0表示一楼 1表示三楼
+        PlatFlag: '41' 一楼 '42'三楼
         date：要预定的日期，格式为2022-06-11
         '''
         self.username = username;
@@ -70,15 +63,15 @@ class YiDongJiaoDa(object):
         self.session.headers['User-Agent'] = ua_change();
         print('随机配置UA信息',self.session.headers['User-Agent'])
         #41 一楼 42 三楼
-        self.platid = ['41','42'][PlatFlag];
+        self.platid = PlatFlag
         self.allplat = {};
         
-        if date == '':
-            today = datetime.datetime.today()
-            five_days_after = today + datetime.timedelta(days=4)
-            self.date = five_days_after.strftime("%Y-%m-%d")
-        else:
-            self.date = date
+        # if date == '':
+        #     today = datetime.datetime.today()
+        #     five_days_after = today + datetime.timedelta(days=4)
+        #     self.date = five_days_after.strftime("%Y-%m-%d")
+        # else:
+        self.date = date
 
     def login(self):
         try:
@@ -123,7 +116,7 @@ class YiDongJiaoDa(object):
 
     def search(self,mode):
         '''
-        mode = 0 全局扫描  mode = 1 单日查询（只查看第五天场地）
+        mode = 0 全局扫描  mode = 1 单日查询（只查看第五天场地） mode=2 单日查询,指定场地
         无需登录即可搜索
         '''
         r = self.session.get('http://202.117.17.144/index.html') #http://202.117.17.144/index.html
@@ -145,6 +138,12 @@ class YiDongJiaoDa(object):
         for i in  range(start,5):
             tomorrow = today + datetime.timedelta(days=i)
             date = tomorrow.strftime("%Y-%m-%d")
+            if mode == 2:
+                if self.date == '':
+                    print('请指定日期')
+                    return 
+                else:
+                    date = self.date
             t =int(round(time.time()*1000));
             param = {
                 's_date': date,
@@ -180,20 +179,33 @@ class YiDongJiaoDa(object):
                 plat_num = int(1 + 9*random())
             else:
                 plat_num = int(1 + 11*random())
-
-        DayPlatTable =self.allplat[self.date]
-        if not DayPlatTable:
-            return []
-        for time in priority:
-            for plat in DayPlatTable:
-                if mode:
-                    if(plat[3][0:2] == time and plat[1] == '场地'+str(plat_num)):
-                        return list(plat)
-                else:
-                    if(plat[3][0:2] == time and plat[1]):
-                        return list(plat)
         
-    def book(self,isEmail:bool, selectplat, InfoList:list = [] ) -> str:
+        today = datetime.datetime.today()
+        date_list = []
+        if mode == 0:
+            for i in  range(0,5):
+                date = (today + datetime.timedelta(days=i)).strftime("%Y-%m-%d")
+                date_list.append(date)
+        elif mode == 1:
+            date =   (today + datetime.timedelta(days=4)).strftime("%Y-%m-%d")
+            date_list.append(date)
+        elif mode == 2:
+            date = self.date
+            date_list.append(date)
+        
+        for i,date in enumerate(date_list):
+            DayPlatTable =self.allplat[date]
+            for time in priority:
+                for plat in DayPlatTable:
+                    if mode:
+                        if(plat[3][0:2] == time and plat[1] == '场地'+str(plat_num)):
+                            return list(plat)
+                    else:
+                        if(plat[3][0:2] == time and plat[1]):
+                            return list(plat)
+        return []
+        
+    def book(self,isEmail:bool, selectplat, InfoList:list = [] ):
         '''
         isEmail 是否发送邮件
         selectplat 选择的场地
@@ -209,10 +221,13 @@ class YiDongJiaoDa(object):
             url_yzm ='http://202.117.17.144:8080/web/login/yzm.html?' + num;
             r = self.session.get(url_yzm)
             if r.status_code is '404':
-                return 'yzm请求有误'
+                return -1,'yzm请求有误'
             with open('project/main/yzm/image/yzm.jpg','wb') as f:
                 f.write(r.content)
             yzm = ocr('project/main/yzm/image/yzm.jpg',5,3)
+            if len(yzm) != 4:
+                continue
+
             url_tobook = 'http://202.117.17.144:8080/web/order/tobook.html';
             data = {
                 'param': json.dumps({
@@ -225,8 +240,14 @@ class YiDongJiaoDa(object):
             }
             headers ={'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'};
             r = self.session.post(url_tobook,data=data,allow_redirects=False);
-            if r.status_code is '200':
+            msg = json.loads(r.text)['message']
+            if msg == '验证码错误':
                 continue
+            elif msg == '未支付':
+                print('预定成功')
+                return 1,null      #True success
+            else:
+                pass
 
         # orderid = re.findall(r'"orderid":"([\d]*?)"',r.text)[0]
         # print("orderid",orderid);
@@ -298,22 +319,24 @@ def bmt_for_thread(ydjd:YiDongJiaoDa, userInfo,mode):
     '''为线程创建的调用接口。
     mode：0表示检漏模式；1表示定时抢场地模式
     '''
-    if mode:
-        circulation_num = 3
+    if mode == 1:
+        circulation_num = 2
         while (circulation_num):
             try:
                 ydjd.search(mode)
                 selectplat = ydjd.select(userInfo['priority'],mode)
                 if selectplat:
-                    id = ydjd.book(True,selectplat,userInfo['emailConfig']);
-                    if id != 'null':
-                        ydjd.buy(id,userInfo['searchPwd']);
-                        return 
+                    status,id = ydjd.book(True,selectplat,userInfo['emailConfig']);
+                    if status == 1:
+                        return
+                    # if id != 'null':
+                    #     ydjd.buy(id,userInfo['searchPwd']);
+                    #     return 
             except Exception as e:
                 print(e)
-            time.sleep(5);
+            time.sleep(10);
             circulation_num -= 1;
-    else:        
+    elif mode == 0:        
         #由于定时任务是相互独立的，在抢到一定数量的场地之后应当及时关停程序，否则会无休止地执行下去
         try:
             ydjd.search(mode)
@@ -329,17 +352,25 @@ def bmt_for_thread(ydjd:YiDongJiaoDa, userInfo,mode):
 
 if __name__ == '__main__':
     userInfo = userInfoRead();
-    ydjd = YiDongJiaoDa(userInfo['username'],userInfo['pwd'],0,'2022-10-07');
+    ydjd = YiDongJiaoDa(userInfo['username'],userInfo['pwd'],'41');
 
+    mode = 0
     ticket = ydjd.login()
     print('ticket:',ticket)
     if type(ticket) is not str:
         exit(-1);
 
-    ydjd.search(0);
-    selectplat = ydjd.select(userInfo['priority'],0)
+    ydjd.search(mode);
+    selectplat = ydjd.select(userInfo['priority'],mode)
     print(selectplat)
     id = ydjd.book(True,selectplat,userInfo['emailConfig']);
+
+    ydjd.platid = '42'
+    ydjd.search(mode);
+    selectplat = ydjd.select(userInfo['priority'],mode)
+    print(selectplat)
+    id = ydjd.book(True,selectplat,userInfo['emailConfig']);
+
     # if id != 'null':
     #     ydjd.buy(id,userInfo['searchPwd']);
 
