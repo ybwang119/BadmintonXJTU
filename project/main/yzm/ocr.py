@@ -5,7 +5,7 @@ import numpy as np
 import cv2
 # from cv2 import erode,imread,imwrite
 # tesseract.exe所在的文件路径
-pytesseract.pytesseract.tesseract_cmd = r'E:\TesseractOcr\tesseract.exe'
+pytesseract.pytesseract.tesseract_cmd = r'D:\Tesseract-OCR\tesseract.exe'
 
 
 # 求图像img中(x,y)处像素的中值c

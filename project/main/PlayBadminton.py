@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 #coding:utf-8
+from copy import deepcopy
 import datetime
 from email.mime.text import MIMEText
 import json
 import re
 import smtplib
 import time
+from tracemalloc import reset_peak
 from urllib.parse import urlencode
 from fileinput import filename
 from random import random
 import requests
-from sqlalchemy import null
 
 from yzm.ocr import *
 from SpiderAgency import ua_change
@@ -20,21 +21,21 @@ def userInfoRead():
       data = json.loads(f.read(),)
       return data
 
-def email(text:str,InfoList:list):
+def email(text:str,info:dict):
     '''使用stmp邮箱服务发送邮件
     text:要发送的字符信息
-    InfoList[0]:email from whom, eg. ****@****.com
-    InfoList[1]:email to whom, eg. ****@****.com
-    InfoList[2]:smtp Sever地址,eg:smtp.qq.com
-    InfoList[3]:开放的端口号
-    InfoList[4]:授权密码而非账户密码
+    info[0]:email from whom, eg. ****@****.com
+    info[1]:email to whom, eg. ****@****.com
+    info[2]:smtp Sever地址,eg:smtp.qq.com
+    info[3]:开放的端口号
+    info[4]:授权密码而非账户密码
     '''
     msg = MIMEText(text, 'plain', 'utf-8')
-    msg_From = InfoList[0];
-    msg_To = InfoList[1]
-    smtpSever = InfoList[2]
-    smtpPort = InfoList[3]
-    sqm = InfoList[4]
+    msg_From = info["from"];
+    msg_To = info["to"]
+    smtpSever = info["smtpServer"]
+    smtpPort = info["port"]
+    sqm = info["AuthorizationCode"]
 
     msg['from'] = msg_From
     msg['to'] = msg_To
@@ -65,6 +66,7 @@ class YiDongJiaoDa(object):
         #41 一楼 42 三楼
         self.platid = PlatFlag
         self.allplat = {};
+        self.userToken = ''
         
         # if date == '':
         #     today = datetime.datetime.today()
@@ -88,7 +90,7 @@ class YiDongJiaoDa(object):
             userToken = data['userToken']
             userId = data['memberId']
             orgId = data['orgId']
-
+            self.userToken = userToken
             url = "http://org.xjtu.edu.cn/openplatform/toon/auth/generateTicket"
             params = {
                 'personToken':userToken,
@@ -113,16 +115,34 @@ class YiDongJiaoDa(object):
         except Exception as e:
             return e
 
+    def login_again(self):
+        url = 'http://org.xjtu.edu.cn/openplatform/toon/private/userLoginByToken'
+        data={"userToken":self.userToken}
+        self.session.post(url,json=data);
 
+        url = "http://org.xjtu.edu.cn/openplatform/toon/auth/generateTicket"
+        params = {
+            'personToken':self.userToken,
+            'empNo':self.username
+        }
+        r = self.session.get(url,params=params,headers={
+                "secretKey":"18a9d512c03745a791d92630bc0888f6"
+            })
+        ticket = json.loads(r.text)['data']['ticket']
+        return ticket
+
+    
     def search(self,mode):
         '''
         mode = 0 全局扫描  mode = 1 单日查询（只查看第五天场地） mode=2 单日查询,指定场地
         无需登录即可搜索
         '''
         r = self.session.get('http://202.117.17.144/index.html') #http://202.117.17.144/index.html
-        print("202.117.17.144",r.status_code)
+        # print("202.117.17.144",r.status_code)
         if r.status_code==200:
-            print("欢迎进入体育场馆预定系统")
+            t = time.strftime('%H:%M:%S', time.localtime())
+
+            print(f"欢迎进入体育场馆预定系统{t}")
 
         #返回值为html有可用信息
         url_BMT1 = 'http://202.117.17.144/product/show.html?id=' +self.platid;
@@ -198,14 +218,19 @@ class YiDongJiaoDa(object):
             for time in priority:
                 for plat in DayPlatTable:
                     if mode:
-                        if(plat[3][0:2] == time and plat[1] == '场地'+str(plat_num)):
-                            return list(plat)
+                        if(plat[3][0:2] == time):
+                        # if(plat[3][0:2] == time and plat[1] == '场地'+str(plat_num)):
+                            res= list(plat)
+                            res.append(date)
+                            return res
                     else:
-                        if(plat[3][0:2] == time and plat[1]):
-                            return list(plat)
+                        if(plat[3][0:2] == time ):
+                            res= list(plat)
+                            res.append(date)
+                            return res
         return []
         
-    def book(self,isEmail:bool, selectplat, InfoList:list = [] ):
+    def book(self,isEmail:bool, selectplat, InfoList:list = [],thread_id=''):
         '''
         isEmail 是否发送邮件
         selectplat 选择的场地
@@ -214,17 +239,18 @@ class YiDongJiaoDa(object):
         print("正在预定,请稍后…………")
         if not selectplat:
             print("无符合条件的场地")
-            return 'null'
+            return 0,'null'
         #--------------------------------------------------
+        self.login_again();
         for i in range(0,11):
             num = str(random());
             url_yzm ='http://202.117.17.144:8080/web/login/yzm.html?' + num;
             r = self.session.get(url_yzm)
             if r.status_code is '404':
                 return -1,'yzm请求有误'
-            with open('project/main/yzm/image/yzm.jpg','wb') as f:
+            with open('project/main/yzm/image/yzm'+thread_id+'.jpg','wb') as f:
                 f.write(r.content)
-            yzm = ocr('project/main/yzm/image/yzm.jpg',5,3)
+            yzm = ocr('project/main/yzm/image/yzm'+thread_id+'.jpg',5,3)
             if len(yzm) != 4:
                 continue
 
@@ -240,14 +266,22 @@ class YiDongJiaoDa(object):
             }
             headers ={'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'};
             r = self.session.post(url_tobook,data=data,allow_redirects=False);
+            print(r.text)
             msg = json.loads(r.text)['message']
             if msg == '验证码错误':
                 continue
             elif msg == '未支付':
+                orderId = json.loads(r.text)['object']['order']['orderid']
                 print('预定成功')
-                return 1,null      #True success
+                if isEmail and InfoList:
+                    platName = '  一楼  'if(self.platid =='41')else'  三楼 '
+                    email_inf = '您的羽毛球场预约小助手已为您预约成功了\n场地信息:\n'+ \
+                        selectplat[-1] + platName +selectplat[1] + '  ' + selectplat[3];
+                    email(email_inf,InfoList[0])
+                return 1,orderId     #True success
             else:
                 pass
+            return 0,'null'
 
         # orderid = re.findall(r'"orderid":"([\d]*?)"',r.text)[0]
         # print("orderid",orderid);
@@ -258,15 +292,13 @@ class YiDongJiaoDa(object):
         orderid 为预定后返回的订单号  querypwd为一卡通查询密码
         '''
         print("正在购买，请稍后…………")
-        url_showpay ='http://202.117.17.144/pay/paymentPlatform/showpay.html'
+        url_showpay ='http://202.117.17.144:8080/web/pay/paymentPlatform/showpay.html'
         param = {
             'orderid': orderid,
-            'payid': '6',
-            'json': 'html',
-            '_': int(round(time.time()*1000))
+            'payid': '6'
         }
         r =self.session.get(url_showpay,params=param);
-        print("url_payplat",r.status_code)
+        # print("url_payplat",r.status_code)
 
         # tranamt account sno toaccount thirdsystem thirdorderid ordertype sign orderdesc praram1 thirdurl
         param_for_next = re.findall(r'name="(.*?)".*?value="(.*?)"',r.text)
@@ -274,77 +306,62 @@ class YiDongJiaoDa(object):
         for p in param_for_next:
             data[p[0]] = p[1]
         url_creatorder ='http://202.117.1.244:9001/Order/CreateOrder';
-        r = self.session.post(url_creatorder,urlencode(data))
+        r = self.session.post(url_creatorder,data=data)
         print("第三方支付系统已唤起",r.status_code)
         #得到信息中有orderid_2
-        orderid_2 = re.findall(r"orderid: '(.*?)'",r.text)[0];
-        print("orderid_2",orderid_2)
+        pattern = r'\w[0-9]{28}'
+        orderid_2 = re.search(pattern,r.text,re.S).group()
+        # print("orderid_2",orderid_2)
 
-        url_updateOrder = 'http://202.117.1.244:9001/Order/UpdateOrderLastpayids'
-        r = self.session.post(url_creatorder,data={'orderid':orderid_2,'payid':'4'},allow_redirects=False)
-        print("提交orderid_2",r.status_code)
-
-        url_PaySynAccType ='http://202.117.1.244:9001/Pay/SynAccType?orderid='+orderid_2+'&payid=4'
-        r = self.session.get(url_PaySynAccType)
-        print("跳转一卡通支付",r.status_code)
-        
-
-        key = re.findall(r'"key-button key-([\d])"',r.text)
-
-        passwd = '';
-        for i in querypwd:
-            passwd += str(key.index(i))
+        url_CommonMobilePay ='http://202.117.1.244:9001/Pay/CommonMobilePay'
         data={
-            'inputStr':re.findall(r'name="inputStr" value="(.*?)"',r.text)[0],
             'orderid': orderid_2,
-            'payid': '4',
-            'acctype': '000',
-            'paytype': 'SynAccType',
-            'rdoacctype': '000',
-            'passwd': passwd
+            'payid': '1',
+            'param1':'000',
+            'paytype':'phonep'
         }
-        url_CommonPcPay = 'http://202.117.1.244:9001/Pay/CommonPcPay'
-        r = self.session.post(url_CommonPcPay,data=urlencode(data), allow_redirects=False)
+        r = self.session.post(url_CommonMobilePay,data=data, allow_redirects=False)
         print('Pay',r.status_code)
-        if r.status_code==302:
+        if r.status_code==200:
             print("支付成功")
             return True
+        else:
+            return False
     
 def bmt_for_winmenu(un,pwd,platid,mode,date=''):
     ydjd = YiDongJiaoDa(un,pwd,platid,date);
     ydjd.search(mode);
     return ydjd.allplat
 
-def bmt_for_thread(ydjd:YiDongJiaoDa, userInfo,mode):
+def bmt_for_thread(ydjd:YiDongJiaoDa, userInfo,mode,thread_id):
     '''为线程创建的调用接口。
     mode：0表示检漏模式；1表示定时抢场地模式
     '''
     if mode == 1:
-        circulation_num = 2
+        circulation_num = 3
         while (circulation_num):
-            try:
-                ydjd.search(mode)
-                selectplat = ydjd.select(userInfo['priority'],mode)
-                if selectplat:
-                    status,id = ydjd.book(True,selectplat,userInfo['emailConfig']);
-                    if status == 1:
-                        return
-                    # if id != 'null':
+            # try:
+            ydjd.search(mode)
+            selectplat = ydjd.select(userInfo['priority'],mode)
+            if selectplat:
+                ydjd.login_again()
+                status,id = ydjd.book(True,selectplat,userInfo['emailConfig'],thread_id);
+                # if status == 1:
                     #     ydjd.buy(id,userInfo['searchPwd']);
                     #     return 
-            except Exception as e:
-                print(e)
-            time.sleep(10);
+            # except Exception as e:
+            #     print(e)
+            time.sleep(1);
             circulation_num -= 1;
-    elif mode == 0:        
+    else:        
         #由于定时任务是相互独立的，在抢到一定数量的场地之后应当及时关停程序，否则会无休止地执行下去
         try:
             ydjd.search(mode)
             selectplat = ydjd.select(userInfo['priority'],mode)
             if selectplat:
-                id = ydjd.book(True,selectplat,userInfo['emailConfig']);
-                if id != 'null':
-                    ydjd.buy(id,userInfo['searchPwd']);
+                status,id = ydjd.book(True,selectplat,userInfo['emailConfig']);
+                if status == 1:
+                    ydjd.buy(id);
                     return True
         except Exception as e:
             print(e)
@@ -359,17 +376,19 @@ if __name__ == '__main__':
     print('ticket:',ticket)
     if type(ticket) is not str:
         exit(-1);
+    
+    print(ydjd.login_again())
+    # ydjd.search(mode);
+    # selectplat = ydjd.select(userInfo['priority'],mode)
+    # print(selectplat)
+    # id = ydjd.book(True,selectplat,userInfo['emailConfig']);
 
-    ydjd.search(mode);
-    selectplat = ydjd.select(userInfo['priority'],mode)
-    print(selectplat)
-    id = ydjd.book(True,selectplat,userInfo['emailConfig']);
-
-    ydjd.platid = '42'
-    ydjd.search(mode);
-    selectplat = ydjd.select(userInfo['priority'],mode)
-    print(selectplat)
-    id = ydjd.book(True,selectplat,userInfo['emailConfig']);
+    # ydjd.platid = '42'
+    # ydjd.search(mode);
+    # selectplat = ydjd.select(userInfo['priority'],mode)
+    # print(selectplat)
+    # id = ydjd.book(True,selectplat,userInfo['emailConfig']);
+    
 
     # if id != 'null':
     #     ydjd.buy(id,userInfo['searchPwd']);
