@@ -1,6 +1,6 @@
 ## 环境
 项目依赖库已打包好，执行`pip install -r requirements.txt`可快速添加依赖项
-ocr识别中，需要安装库pytesseract，并在[line2](./project/main/yzm/ocr.py) 修改tesseract.exe所在的文件路径
+ocr识别中，除了需要安装python库pytesseract外，还需要另外下载tesseract程序并添加环境变量[win下载地址](https://digi.bib.uni-mannheim.de/tesseract/)，并在[line2](./project/main/yzm/ocr.py) 修改tesseract.exe所在的文件路径
 
 在[用户参数配置](./docs/user_config.json)填写帐密、查询密码、预约偏好等信息，此部分涉及敏感信息
 ```json

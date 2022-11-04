@@ -5,7 +5,7 @@ import numpy as np
 import cv2
 # from cv2 import erode,imread,imwrite
 # tesseract.exe所在的文件路径
-pytesseract.pytesseract.tesseract_cmd = r'E:\TesseractOcr\tesseract.exe'
+# pytesseract.pytesseract.tesseract_cmd = r'D:\Tesseract-OCR\tesseract.exe'
 
 
 # 求图像img中(x,y)处像素的中值c
@@ -106,20 +106,20 @@ def ocr(path1,cut_flag,wid,path2=''):
     # text = ocr_text
     text = pytesseract.image_to_string(img2,lang="eng",config='--psm 7')
     exclude_char_list = ' .:\\|\'\"?![],()~@#$%^&*_+-={};<>/¥'
-    text = ''.join([x for x in text if x not in exclude_char_list])
+    text = "".join(filter(str.isalnum, text))
     text = text.upper();
     img1.close();
     imgt.close();
     img2.close();
-    print(text.replace('\n',''))
+    print(text)
     return text.replace('\n','');
 
 if __name__ == '__main__':
-    with open(r'project/main/yzm./testAns.txt','r',encoding='utf-8') as f:
+    with open(r'/home/wuiten/BadmintonXJTU/project/main/yzm/TESTANS.txt','r',encoding='utf-8') as f:
         ans = f.read().splitlines();
         success_num = 0
         for i in range(0,80):
-            text = ocr('project/main/yzm/imagedata/yzm'+str(i)+'.jpg',5,3)
+            text = ocr('/home/wuiten/BadmintonXJTU/project/main/yzm/imagedata/yzm'+str(i)+'.jpg',5,3)
             if text == ans[i]:
                 success_num += 1
         print(success_num)
