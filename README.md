@@ -61,5 +61,5 @@ BadmintonXJTU
             test.py
 ```    
 ---
-@Copyright lxt
+@Copyright Ton
 
