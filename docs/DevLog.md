@@ -39,4 +39,8 @@ ocr路径报错,起初以为绝对路径有误,后来排查发现时验证码没
 猜测是cookie缺失了,对`/workbench/member/appNew/getOauthCode?userId=803873&orgId=1000&appId=760&state=2222&redirectUri=http%3A%2F%2F202.117.17.144%3A8080%2Fweb%2Findex.html?userType=1&employeeNo=2191411814&personToken=24324d82-95dc-42a5-821e-74c6ed9b1236`重定向的请求后会设置两个cookie,jessionid与sessionid,以此区分不同用户
 该次请求userId与userToken必须对应
 找userId找了半天,实际上这个参数在之前请求userToken时已经拿到了
-   
+
+## 2022.11.7
+进行tobook预定时，返回message显示USERNOTLOGIN，加入loginagain模块不起效果，于是采用简单的sleep策略
+预约场地都是一个时间段，因此成功预约后加入一些代码，使成功后更新场地数量并将该时段从优先级列表中删除
+**项目可成功预约到场地！！**
