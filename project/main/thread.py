@@ -9,12 +9,11 @@ def MainBook():
     #     print('rtest')
     userInfo = userInfoRead()
     mode = 1
-    # start_time = "08:40:00" #08:40:00
-    start_time = (datetime.datetime.now() + datetime.timedelta(seconds=10)).strftime('%H:%M:%S') 
+    start_time = "08:39:00" #08:40:00
+    # start_time = (datetime.datetime.now() + datetime.timedelta(seconds=2)).strftime('%H:%M:%S') 
     if mode:
         sub_thread = []
         ydjd = YiDongJiaoDa(userInfo['username'],userInfo['pwd'],'41');
-        ydjd.login()
         ydjd2 = copy.deepcopy(ydjd)
         ydjd2.platid = '42'
         for i in range(0,1):
@@ -34,12 +33,12 @@ def MainBook():
             schedule.run_pending()
             sleep(1)
     else:
-        ydjd = YiDongJiaoDa(userInfo['username'],userInfo['pwd'],'41','2022-11-03');
+        ydjd = YiDongJiaoDa(userInfo['username'],userInfo['pwd'],'41');
         ydjd.login()
         ydjd2 = copy.deepcopy(ydjd)
         ydjd2.platid = '42'
-        schedule.every(120).seconds.do(bmt_for_thread,ydjd=ydjd,userInfo=userInfo,mode=2,thread_id = '1-1')
-        schedule.every(120).seconds.do(bmt_for_thread,ydjd=ydjd2,userInfo=userInfo,mode=2,thread_id = '1-2' )
+        schedule.every(30).seconds.do(bmt_for_thread,ydjd=ydjd,userInfo=userInfo,mode=mode,thread_id = '1-1')
+        # schedule.every(120).seconds.do(bmt_for_thread,ydjd=ydjd2,userInfo=userInfo,mode=mode,thread_id = '1-2' )
         while 1:
             schedule.run_pending()
             sleep(1)
