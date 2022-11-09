@@ -1,3 +1,7 @@
+## 项目说明
+本项目可实现西安交通大学兴庆校区羽毛球场馆的预约，提供全局扫描以及定时抢场两种功能。
+This project can reserve badminton venues in Xingqing Campus of XJTU, and provide two basic functions: global scanning and timing competition.
+
 ## 环境
 项目依赖库已打包好，执行`pip install -r requirements.txt`可快速添加依赖项
 ocr识别中，除了需要安装python库pytesseract外，还需要另外下载tesseract程序并添加环境变量[win下载地址](https://digi.bib.uni-mannheim.de/tesseract/)，并在[line2](./project/main/yzm/ocr.py) 修改tesseract.exe所在的文件路径,linux下无需修改
