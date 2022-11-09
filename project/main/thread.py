@@ -8,17 +8,20 @@ def MainBook():
     # def test():
     #     print('rtest')
     userInfo = userInfoRead()
-    mode = 1
+    
+    # user parameter
+    mode = 1       #mode为2还需要在Line38传入指定日期
+    floor = '41'   #一楼'41' 三楼'43'
+    isEmail = True #是否发送邮件
+    
     start_time = "08:39:00" #08:40:00
     # start_time = (datetime.datetime.now() + datetime.timedelta(seconds=2)).strftime('%H:%M:%S') 
     if mode:
         sub_thread = []
-        ydjd = YiDongJiaoDa(userInfo['username'],userInfo['pwd'],'41');
-        ydjd2 = copy.deepcopy(ydjd)
-        ydjd2.platid = '42'
+        ydjd = YiDongJiaoDa(userInfo['username'],userInfo['pwd'],floor);
         for i in range(0,1):
             print("正在注册线程",2*i+1,'--------------')
-            sub_thread.append( threading.Thread(target = bmt_for_thread,args=(ydjd,userInfo,mode,str(i)+'-1')) )
+            sub_thread.append( threading.Thread(target = bmt_for_thread,args=(ydjd,userInfo,mode,str(i)+'-1',isEmail)) )
             # sub_thread.append( threading.Thread(target = bmt_for_thread,args=(ydjd2,userInfo,mode,str(i)+'-2')) )
             # sub_thread.append( threading.Thread(target = test) )
         schedule_break_flag = False
@@ -33,12 +36,12 @@ def MainBook():
             schedule.run_pending()
             sleep(1)
     else:
-        ydjd = YiDongJiaoDa(userInfo['username'],userInfo['pwd'],'41');
+        ydjd = YiDongJiaoDa(userInfo['username'],userInfo['pwd'],floor);
         ydjd.login()
         ydjd2 = copy.deepcopy(ydjd)
         ydjd2.platid = '42'
-        schedule.every(30).seconds.do(bmt_for_thread,ydjd=ydjd,userInfo=userInfo,mode=mode,thread_id = '1-1')
-        # schedule.every(120).seconds.do(bmt_for_thread,ydjd=ydjd2,userInfo=userInfo,mode=mode,thread_id = '1-2' )
+        schedule.every(120).seconds.do(bmt_for_thread,ydjd=ydjd,userInfo=userInfo,mode=mode,thread_id = '1-1',isEmail)
+        schedule.every(120).seconds.do(bmt_for_thread,ydjd=ydjd2,userInfo=userInfo,mode=mode,thread_id = '1-2,',isEmail )
         while 1:
             schedule.run_pending()
             sleep(1)

@@ -218,8 +218,8 @@ class YiDongJiaoDa(object):
             for time in priority:
                 for plat in DayPlatTable:
                     if mode:
-                        if(plat[3][0:2] == time):
-                        # if(plat[3][0:2] == time and plat[1] == '场地'+str(plat_num)):
+                        # if(plat[3][0:2] == time):
+                        if(plat[3][0:2] == time and plat[1] == '场地'+str(plat_num)):
                             res= list(plat)
                             res.append(date)
                             return res
@@ -339,7 +339,7 @@ def bmt_for_winmenu(un,pwd,platid,mode,date=''):
     ydjd.search(mode);
     return ydjd.allplat
 
-def bmt_for_thread(ydjd:YiDongJiaoDa, userInfo,mode,thread_id):
+def bmt_for_thread(ydjd:YiDongJiaoDa, userInfo,mode,thread_id,isEmail):
     '''为线程创建的调用接口。
     mode：0表示检漏模式；1表示定时抢场地模式
     '''
@@ -354,25 +354,22 @@ def bmt_for_thread(ydjd:YiDongJiaoDa, userInfo,mode,thread_id):
         time.sleep(seconds);
         circulation_num = 5
         plat_booked_num = 0
-        while (circulation_num and plat_booked_num<=2 ):
-            # try:
-            ydjd.search(mode)
-            selectplat = ydjd.select(userInfo['priority'],mode)
-            if selectplat:
-                ydjd.login_again()
-                status,id,sTime = ydjd.book(True,selectplat,userInfo['emailConfig'],thread_id);
-                if status == 1:
-                    plat_booked_num += 1;
-                    try:
+        while (circulation_num>0 and plat_booked_num<=2 ):
+            try:
+                ydjd.search(mode)
+                selectplat = ydjd.select(userInfo['priority'],mode)
+                if selectplat:
+                    ydjd.login_again()
+                    status,id,sTime = ydjd.book(isEmail,selectplat,userInfo['emailConfig'],thread_id);
+                    if status == 1:
+                        plat_booked_num += 1;
                         userInfo['priority'].remove(sTime)
                         ydjd.buy(id,userInfo['searchPwd']);
-                    except Exception as e:
-                        print(e)
-                    return 
-            # except Exception as e:
-            #     print(e)
+            except Exception as e:
+                print(e)
             time.sleep(1);
             circulation_num -= 1;
+        return
     else:        
         #由于定时任务是相互独立的，在抢到一定数量的场地之后应当及时关停程序，否则会无休止地执行下去
         # try:
@@ -392,24 +389,26 @@ def bmt_for_thread(ydjd:YiDongJiaoDa, userInfo,mode,thread_id):
 
 if __name__ == '__main__':
     userInfo = userInfoRead();
-    ydjd = YiDongJiaoDa(userInfo['username'],userInfo['pwd'],'41');
+    userInfo['priority'].remove("19")
+    pass
+    # ydjd = YiDongJiaoDa(userInfo['username'],userInfo['pwd'],'41');
 
-    mode = 0
-    ticket = ydjd.login()
-    print('ticket:',ticket)
-    if type(ticket) is not str:
-        exit(-1);
+    # mode = 0
+    # ticket = ydjd.login()
+    # print('ticket:',ticket)
+    # if type(ticket) is not str:
+    #     exit(-1);
 
-    ydjd.search(mode);
-    selectplat = ydjd.select(userInfo['priority'],mode)
-    print(selectplat)
-    id = ydjd.book(True,selectplat,userInfo['emailConfig']);
+    # ydjd.search(mode);
+    # selectplat = ydjd.select(userInfo['priority'],mode)
+    # print(selectplat)
+    # id = ydjd.book(True,selectplat,userInfo['emailConfig']);
 
-    ydjd.platid = '42'
-    ydjd.search(mode);
-    selectplat = ydjd.select(userInfo['priority'],mode)
-    print(selectplat)
-    id = ydjd.book(True,selectplat,userInfo['emailConfig']);
+    # ydjd.platid = '42'
+    # ydjd.search(mode);
+    # selectplat = ydjd.select(userInfo['priority'],mode)
+    # print(selectplat)
+    # id = ydjd.book(True,selectplat,userInfo['emailConfig']);
     
 
     # if id != 'null':
