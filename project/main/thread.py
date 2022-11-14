@@ -40,8 +40,8 @@ def MainBook():
         ydjd.login()
         ydjd2 = copy.deepcopy(ydjd)
         ydjd2.platid = '42'
-        schedule.every(120).seconds.do(bmt_for_thread,ydjd=ydjd,userInfo=userInfo,mode=mode,thread_id = '1-1',isEmail)
-        schedule.every(120).seconds.do(bmt_for_thread,ydjd=ydjd2,userInfo=userInfo,mode=mode,thread_id = '1-2,',isEmail )
+        schedule.every(120).seconds.do(bmt_for_thread,ydjd=ydjd,userInfo=userInfo,mode=mode,thread_id = '1-1',isEmail=isEmail)
+        schedule.every(120).seconds.do(bmt_for_thread,ydjd=ydjd2,userInfo=userInfo,mode=mode,thread_id = '1-2,',isEmail =isEmail )
         while 1:
             schedule.run_pending()
             sleep(1)

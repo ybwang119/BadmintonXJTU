@@ -9,10 +9,27 @@ import time
 from random import random
 import requests
 import os
+import pytz as pytz
 
 from yzm.ocr import *
 from SpiderAgency import ua_change
 
+def getTime(mode):
+    utc_now = datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc)
+    SHA_TZ = datetime.timezone(
+        datetime.timedelta(hours=8),
+        name='Asia/Shanghai',
+    )
+    # 北京时间
+    beijing_now = utc_now.astimezone(SHA_TZ)
+    fmt = '%Y-%m-%d %H:%M:%S'
+    now_fmt =beijing_now.strftime(fmt)
+    if mode == 0:
+        return now_fmt[:10]
+    else:
+        return now_fmt[11:]  
+
+tz = pytz.timezone('Asia/Shanghai') 
 def userInfoRead():
     current_path = os.getcwd()
     with open(current_path + '/BadmintonXJTU/docs/user_config.json','r') as f:
@@ -140,7 +157,7 @@ class YiDongJiaoDa(object):
         # r = self.session.get('http://202.117.17.144/index.html') #http://202.117.17.144/index.html
         # print("202.117.17.144",r.status_code)
         if r.status_code==200:
-            t = time.strftime('%H:%M:%S', time.localtime())
+            t = datetime.datetime.fromtimestamp(int(time.time()), tz).strftime('%Y-%m-%d %H:%M:%S %Z%z')
 
             print(f"欢迎进入体育场馆预定系统{t}")
 
@@ -152,7 +169,7 @@ class YiDongJiaoDa(object):
         #-----------------------------获取场地信息-------------------------------
         #五天的全部场地信息，用字典存储
         AllPlatTable = {};
-        today = datetime.datetime.today()
+        today = datetime.datetime.fromtimestamp(int(time.time()), tz).today()
 
         start  = 0 if mode == 0 else 4;
         for i in  range(start,5):
@@ -199,8 +216,7 @@ class YiDongJiaoDa(object):
                 plat_num = int(1 + 9*random())
             else:
                 plat_num = int(1 + 11*random())
-        
-        today = datetime.datetime.today()
+        today = datetime.datetime.fromtimestamp(int(time.time()), tz).today()
         date_list = []
         if mode == 0:
             for i in  range(0,5):
@@ -215,16 +231,16 @@ class YiDongJiaoDa(object):
         
         for i,date in enumerate(date_list):
             DayPlatTable =self.allplat[date]
-            for time in priority:
+            for stime in priority:
                 for plat in DayPlatTable:
                     if mode:
                         # if(plat[3][0:2] == time):
-                        if(plat[3][0:2] == time and plat[1] == '场地'+str(plat_num)):
+                        if(plat[3][0:2] == stime and plat[1] == '场地'+str(plat_num)):
                             res= list(plat)
                             res.append(date)
                             return res
                     else:
-                        if(plat[3][0:2] == time ):
+                        if(plat[3][0:2] == stime ):
                             res= list(plat)
                             res.append(date)
                             return res
@@ -345,10 +361,11 @@ def bmt_for_thread(ydjd:YiDongJiaoDa, userInfo,mode,thread_id,isEmail):
     '''
     if mode == 1:
         ydjd.login()
-        nowTime = datetime.datetime.now();
+        nowTime = datetime.datetime.fromtimestamp(int(time.time()), tz)
         print(f"登录后的时间：{nowTime}")
         # t = (datetime.datetime.now() + datetime.timedelta(seconds=5)).strftime('%H:%M:%S') 
-        targetTime = datetime.datetime.strptime("08:40:00","%H:%M:%S") #"08:40:00"
+        targetTime = datetime.datetime.strptime("08:40:00","%H:%M:%S").replace(tzinfo=pytz.timezone('Asia/Shanghai')) #"08:40:00"
+        print(f"目标时间：{targetTime}")
         seconds = (targetTime-nowTime).seconds
         print(f"休眠时间：{seconds}s")
         time.sleep(seconds);
@@ -391,24 +408,24 @@ if __name__ == '__main__':
     userInfo = userInfoRead();
     userInfo['priority'].remove("19")
     pass
-    # ydjd = YiDongJiaoDa(userInfo['username'],userInfo['pwd'],'41');
+    ydjd = YiDongJiaoDa(userInfo['username'],userInfo['pwd'],'41');
 
-    # mode = 0
-    # ticket = ydjd.login()
-    # print('ticket:',ticket)
-    # if type(ticket) is not str:
-    #     exit(-1);
+    mode = 0
+    ticket = ydjd.login()
+    print('ticket:',ticket)
+    if type(ticket) is not str:
+        exit(-1);
 
-    # ydjd.search(mode);
-    # selectplat = ydjd.select(userInfo['priority'],mode)
-    # print(selectplat)
-    # id = ydjd.book(True,selectplat,userInfo['emailConfig']);
+    ydjd.search(mode);
+    selectplat = ydjd.select(userInfo['priority'],mode)
+    print(selectplat)
+    id = ydjd.book(True,selectplat,userInfo['emailConfig']);
 
-    # ydjd.platid = '42'
-    # ydjd.search(mode);
-    # selectplat = ydjd.select(userInfo['priority'],mode)
-    # print(selectplat)
-    # id = ydjd.book(True,selectplat,userInfo['emailConfig']);
+    ydjd.platid = '42'
+    ydjd.search(mode);
+    selectplat = ydjd.select(userInfo['priority'],mode)
+    print(selectplat)
+    id = ydjd.book(True,selectplat,userInfo['emailConfig']);
     
 
     # if id != 'null':
